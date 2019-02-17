@@ -6,22 +6,32 @@
 package regexsearch;
 
 import common.exception.AppException;
+import common.exception.ExceptionUtils;
 import common.exception.FileException;
 import common.gui.ArrowButton;
 import common.gui.Colours;
+import common.gui.FButton;
 import common.gui.FCheckBox;
-import common.gui.FComboBox;
 import common.gui.FLabel;
+import common.gui.FMenu;
+import common.gui.FMenuItem;
 import common.gui.GuiUtils;
+import common.gui.SinglePathnameFieldDialog;
 import common.gui.SingleSelectionListEditor;
+import common.gui.TextArea;
 import common.gui.TextRendering;
 import common.misc.ColourUtils;
+import common.misc.FilenameSuffixFilter;
 import common.misc.InputModifiers;
 import common.misc.KeyAction;
+import common.misc.ListEditor;
 import common.misc.PathnameFilter;
+import common.misc.Property;
 import common.misc.PropertyString;
 import common.misc.StringUtils;
+import common.misc.SystemUtils;
 import common.misc.TextFile;
+import common.misc.TextUtils;
 import common.misc.VHPos;
 import common.regex.RegexUtils;
 import common.textfield.PathnameField;
@@ -38,14 +48,17 @@ import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,20 +66,32 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import static javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.MenuEvent;
 
 /**
  *
@@ -111,20 +136,54 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         jTextArea4 = new javax.swing.JTextArea();
         jPanel6 = new javax.swing.JPanel();
         fileSetKindLabel = new javax.swing.JLabel();
-        jComboBox1 = new javax.swing.JComboBox<>();
+        fileSetKindComboBox = new javax.swing.JComboBox<>();
+        fileSetKindComboBox = new JComboBox(FileSet.Kind.values());
+        fileSetKindComboBox.setActionCommand(Command.SELECT_FILE_SET_KIND);
+        fileSetKindComboBox.addActionListener(this);
         jLabel3 = new javax.swing.JLabel();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
-        jButton4 = new javax.swing.JButton();
-        jButton5 = new javax.swing.JButton();
-        jButton7 = new javax.swing.JButton();
-        jButton8 = new javax.swing.JButton();
-        jButton16 = new javax.swing.JButton();
+        fileSetPreviousButton = new javax.swing.JButton();
+        //		fileSetPreviousButton = new FileSetButton(ScrollDirection.BACKWARD);
+        //		fileSetPreviousButton.setToolTipText(GO_TO_FILE_SET_PREVIOUS_STR);
+        //		fileSetPreviousButton.setActionCommand(Command.GO_TO_FILE_SET_PREVIOUS);
+        fileSetPreviousButton.addActionListener(this);
+        insertFileSetButton = new javax.swing.JButton();
+        //		insertFileSetButton = new JButton(AppIcon.PLUS);
+        //		insertFileSetButton.setMargin(ICON_BUTTON_MARGINS);
+        insertFileSetButton.setToolTipText(INSERT_FILE_SET_STR);
+        insertFileSetButton.setActionCommand(Command.INSERT_FILE_SET);
+        insertFileSetButton.addActionListener(this);
+        duplicateFileSetButton = new javax.swing.JButton();
+        //duplicateFileSetButton = new JButton(AppIcon.RHOMB_PAIR);
+        //duplicateFileSetButton.setMargin(ICON_BUTTON_MARGINS);
+        duplicateFileSetButton.setToolTipText(DUPLICATE_FILE_SET_STR);
+        duplicateFileSetButton.setActionCommand(Command.DUPLICATE_FILE_SET);
+        duplicateFileSetButton.addActionListener(this);
+        deleteFileSetButton = new javax.swing.JButton();
+        //		deleteFileSetButton = new JButton(AppIcon.MINUS);
+        //		deleteFileSetButton.setMargin(ICON_BUTTON_MARGINS);
+        deleteFileSetButton.setToolTipText(DELETE_CURRENT_FILE_SET_STR);
+        deleteFileSetButton.setActionCommand(Command.DELETE_FILE_SET);
+        deleteFileSetButton.addActionListener(this);
+        fileSetNextButton = new javax.swing.JButton();
+        //		fileSetNextButton = new FileSetButton(ScrollDirection.FORWARD);
+        //		fileSetNextButton.setToolTipText(GO_TO_FILE_SET_NEXT_STR);
+        fileSetNextButton.setActionCommand(Command.GO_TO_FILE_SET_NEXT);
+        fileSetNextButton.addActionListener(this);
+        fileSetStartButton = new javax.swing.JButton();
+        //		fileSetStartButton = new FileSetButton(ScrollDirection.BACKWARD, true);
+        //		fileSetStartButton.setToolTipText(GO_TO_FILE_SET_START_STR);
+        fileSetStartButton.setActionCommand(Command.GO_TO_FILE_SET_START);
+        fileSetStartButton.addActionListener(this);
+        fileSetEndButton = new javax.swing.JButton();
+        //		fileSetEndButton = new FileSetButton(ScrollDirection.FORWARD, true);
+        //		fileSetEndButton.setToolTipText(GO_TO_FILE_SET_END_STR);
+        fileSetEndButton.setActionCommand(Command.GO_TO_FILE_SET_END);
+        fileSetEndButton.addActionListener(this);
         fileSetKindLabel1 = new javax.swing.JLabel();
         jTextField4 = new javax.swing.JTextField();
         jLabel2 = new javax.swing.JLabel();
         jTextField1 = new javax.swing.JTextField();
-        jButton1 = new javax.swing.JButton();
+        browseButtonOLD = new javax.swing.JButton();
         jTextField2 = new javax.swing.JTextField();
         jLabel4 = new javax.swing.JLabel();
         jLabel5 = new javax.swing.JLabel();
@@ -143,6 +202,8 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         jScrollPane5 = new javax.swing.JScrollPane();
         jTextArea5 = new javax.swing.JTextArea();
         jLabel8 = new javax.swing.JLabel();
+        jLabel6 = new javax.swing.JLabel();
+        jTextField5 = new javax.swing.JTextField();
         menuBar = new javax.swing.JMenuBar();
         fileMenu = new javax.swing.JMenu();
         openMenuItem = new javax.swing.JMenuItem();
@@ -211,48 +272,50 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         );
 
         fileSetKindLabel.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        fileSetKindLabel.setText("Type");
-        fileSetKindLabel.setToolTipText("File-Set Kind");
+        fileSetKindLabel.setText("File Set Type");
+        fileSetKindLabel.setToolTipText("File-Set Kind or Type");
 
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "File", "Directory", "List", "Results", "Clipboard" }));
+        fileSetKindComboBox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                fileSetKindComboBoxActionPerformed(evt);
+            }
+        });
 
         jLabel3.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         jLabel3.setText("X / X");
 
-        jButton2.setText("<");
-        jButton2.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        fileSetPreviousButton.setText("<");
+        fileSetPreviousButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton3.setText("+");
-        jButton3.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        insertFileSetButton.setText("+");
+        insertFileSetButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton4.setText("D");
-        jButton4.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        duplicateFileSetButton.setText("D");
+        duplicateFileSetButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton5.setText("-");
-        jButton5.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        deleteFileSetButton.setText("-");
+        deleteFileSetButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton7.setText(">");
-        jButton7.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        fileSetNextButton.setText(">");
+        fileSetNextButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton8.setText("|<");
-        jButton8.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        fileSetStartButton.setText("|<");
+        fileSetStartButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
-        jButton16.setText(">|");
-        jButton16.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        fileSetEndButton.setText(">|");
+        fileSetEndButton.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
         fileSetKindLabel1.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        fileSetKindLabel1.setText("Type Name");
-        fileSetKindLabel1.setToolTipText("Just a description of this type.");
-
-        jTextField4.setText("jTextField4");
+        fileSetKindLabel1.setText("Set Name");
+        fileSetKindLabel1.setToolTipText("Just a description of this set.");
 
         jLabel2.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
         jLabel2.setText("Pathname");
 
         jTextField1.setText("/");
 
-        jButton1.setText("Browse");
-        jButton1.setMargin(new java.awt.Insets(0, 0, 0, 0));
+        browseButtonOLD.setText("Browse");
+        browseButtonOLD.setMargin(new java.awt.Insets(0, 0, 0, 0));
 
         jTextField2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -347,7 +410,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
                     .addComponent(jButton15, javax.swing.GroupLayout.DEFAULT_SIZE, 30, Short.MAX_VALUE)
                     .addComponent(jButton14, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jButton17, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(jButton17, javax.swing.GroupLayout.DEFAULT_SIZE, 30, Short.MAX_VALUE))
         );
 
         jTextArea5.setColumns(20);
@@ -355,8 +418,11 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         jScrollPane5.setViewportView(jTextArea5);
 
         jLabel8.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
-        jLabel8.setText("Target");
+        jLabel8.setText("Replacement");
         jLabel8.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+
+        jLabel6.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        jLabel6.setText("Target Name");
 
         javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
         jPanel6.setLayout(jPanel6Layout);
@@ -364,14 +430,15 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
             jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel6Layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel7, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel5, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(fileSetKindLabel1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 71, Short.MAX_VALUE)
-                    .addComponent(fileSetKindLabel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, 71, Short.MAX_VALUE)
+                    .addComponent(jLabel8, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(fileSetKindLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(fileSetKindLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel6Layout.createSequentialGroup()
@@ -379,34 +446,35 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel6Layout.createSequentialGroup()
-                        .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(fileSetKindComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 411, Short.MAX_VALUE)
-                        .addComponent(jButton3, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(insertFileSetButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton4, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(duplicateFileSetButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(deleteFileSetButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(22, 22, 22)
-                        .addComponent(jButton8, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(fileSetStartButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(fileSetPreviousButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(16, 16, 16)
                         .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton7, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(fileSetNextButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton16, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(fileSetEndButton, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jTextField4)
                     .addGroup(jPanel6Layout.createSequentialGroup()
                         .addComponent(jTextField1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(browseButtonOLD, javax.swing.GroupLayout.PREFERRED_SIZE, 85, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jTextField2)
                     .addComponent(jTextField3)
                     .addGroup(jPanel6Layout.createSequentialGroup()
                         .addComponent(jScrollPane2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jTextField5, javax.swing.GroupLayout.Alignment.TRAILING))
                 .addContainerGap())
         );
         jPanel6Layout.setVerticalGroup(
@@ -415,15 +483,15 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
                 .addContainerGap()
                 .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(fileSetKindLabel)
-                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(fileSetKindComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel3)
-                    .addComponent(jButton2)
-                    .addComponent(jButton3)
-                    .addComponent(jButton4)
-                    .addComponent(jButton5)
-                    .addComponent(jButton7)
-                    .addComponent(jButton8)
-                    .addComponent(jButton16))
+                    .addComponent(fileSetPreviousButton)
+                    .addComponent(insertFileSetButton)
+                    .addComponent(duplicateFileSetButton)
+                    .addComponent(deleteFileSetButton)
+                    .addComponent(fileSetNextButton)
+                    .addComponent(fileSetStartButton)
+                    .addComponent(fileSetEndButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(fileSetKindLabel1)
@@ -433,7 +501,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
                     .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jLabel2)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(browseButtonOLD, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel4)
@@ -443,15 +511,19 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
                     .addComponent(jLabel5)
                     .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jLabel7, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel6)
+                    .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel7, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel8, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
@@ -538,9 +610,9 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 52, Short.MAX_VALUE)
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
@@ -565,6 +637,10 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         // TODO add your handling code here:
     }//GEN-LAST:event_jButton17ActionPerformed
 
+    private void fileSetKindComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_fileSetKindComboBoxActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_fileSetKindComboBoxActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -574,22 +650,22 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
          * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
          */
-        try {
-            //for (UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                //if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel("Windows");
-                    //break;
-                //}
-            //}
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
+//        try {
+//            //for (UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+//                //if ("Nimbus".equals(info.getName())) {
+//                    //javax.swing.UIManager.setLookAndFeel("Windows");
+//                    //break;
+//                //}
+//            //}
+//        } catch (ClassNotFoundException ex) {
+//            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (InstantiationException ex) {
+//            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (IllegalAccessException ex) {
+//            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+//            java.util.logging.Logger.getLogger(AppStandardizer.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        }
         //</editor-fold>
 
         /* Create and display the form */
@@ -617,43 +693,40 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
     private javax.swing.JMenu Search;
     private javax.swing.JMenuItem SearchGo;
     private javax.swing.JMenuItem aboutMenuItem;
+    private javax.swing.JButton browseButtonOLD;
     private javax.swing.JMenuItem contentsMenuItem;
     private javax.swing.JMenuItem copyMenuItem;
     private javax.swing.JMenuItem cutMenuItem;
+    private javax.swing.JButton deleteFileSetButton;
+    private javax.swing.JButton duplicateFileSetButton;
     private javax.swing.JMenu editMenu;
     private javax.swing.JMenuItem exitMenuItem;
     private javax.swing.JMenu fileMenu;
+    private javax.swing.JButton fileSetEndButton;
+    private javax.swing.JComboBox<String> fileSetKindComboBox;
     private javax.swing.JLabel fileSetKindLabel;
     private javax.swing.JLabel fileSetKindLabel1;
+    private javax.swing.JButton fileSetNextButton;
+    private javax.swing.JButton fileSetPreviousButton;
+    private javax.swing.JButton fileSetStartButton;
     private javax.swing.JMenu helpMenu;
-    private javax.swing.JButton jButton1;
+    private javax.swing.JButton insertFileSetButton;
     private javax.swing.JButton jButton10;
-    private javax.swing.JButton jButton11;
-    private javax.swing.JButton jButton12;
-    private javax.swing.JButton jButton13;
     private javax.swing.JButton jButton14;
     private javax.swing.JButton jButton15;
-    private javax.swing.JButton jButton16;
     private javax.swing.JButton jButton17;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
-    private javax.swing.JButton jButton4;
-    private javax.swing.JButton jButton5;
     private javax.swing.JButton jButton6;
-    private javax.swing.JButton jButton7;
-    private javax.swing.JButton jButton8;
     private javax.swing.JButton jButton9;
-    private javax.swing.JComboBox<String> jComboBox1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
-    private javax.swing.JPanel jPanel4;
     private javax.swing.JPanel jPanel5;
     private javax.swing.JPanel jPanel6;
     private javax.swing.JScrollPane jScrollPane2;
@@ -668,6 +741,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
     private javax.swing.JTextField jTextField2;
     private javax.swing.JTextField jTextField3;
     private javax.swing.JTextField jTextField4;
+    private javax.swing.JTextField jTextField5;
     private javax.swing.JMenuBar menuBar;
     private javax.swing.JMenuItem openMenuItem;
     private javax.swing.JMenuItem pasteMenuItem;
@@ -742,6 +816,13 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		String	TOGGLE_REPLACE			= "toggleReplace";
 		String	TOGGLE_REGEX			= "toggleRegex";
 		String	SHOW_CONTEXT_MENU		= "showContextMenu";
+                
+                //Pathname Editor
+                String	CHOOSE_PATHNAME		= "choosePathname";
+		String	EDIT				= "edit";
+		String	COPY				= "copy";
+//		String	SHOW_CONTEXT_MENU	= "showContextMenu";
+                
 	}
 
 	private static final	KeyAction.KeyCommandPair[]	KEY_COMMANDS	=
@@ -1305,23 +1386,23 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		mainPanel.add(fileSetControlPanel);
 
 		// Combo box: file-set kind
-		fileSetKindComboBox = new FComboBox<>(FileSet.Kind.values());
+		fileSetKindComboBox = new JComboBox(FileSet.Kind.values());
 		fileSetKindComboBox.setActionCommand(Command.SELECT_FILE_SET_KIND);
 		fileSetKindComboBox.addActionListener(this);
 
-		int gridX = 0;
-
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 0, 0);
-		gridBag.setConstraints(fileSetKindComboBox, gbc);
-		fileSetControlPanel.add(fileSetKindComboBox);
+                int gridX = 0;
+//
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 0, 0, 0);
+//		gridBag.setConstraints(fileSetKindComboBox, gbc);
+//		fileSetControlPanel.add(fileSetKindComboBox);
 
 		// Filler: file-set control panel
 		Box.Filler fileSetControlPanelFiller = GuiUtils.createFiller();
@@ -1375,61 +1456,61 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		gridX = 0;
 
 		// Button: insert file set
-		insertFileSetButton = new JButton(AppIcon.PLUS);
-		insertFileSetButton.setMargin(ICON_BUTTON_MARGINS);
-		insertFileSetButton.setToolTipText(INSERT_FILE_SET_STR);
-		insertFileSetButton.setActionCommand(Command.INSERT_FILE_SET);
-		insertFileSetButton.addActionListener(this);
-
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 0, 0);
-		gridBag.setConstraints(insertFileSetButton, gbc);
-		fileSetCommandPanel.add(insertFileSetButton);
+//		pathnameEditor = new JButton(AppIcon.PLUS);
+//		pathnameEditor.setMargin(ICON_BUTTON_MARGINS);
+//		pathnameEditor.setToolTipText(INSERT_FILE_SET_STR);
+//		pathnameEditor.setActionCommand(Command.INSERT_FILE_SET);
+//		pathnameEditor.addActionListener(this);
+//
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 0, 0, 0);
+//		gridBag.setConstraints(pathnameEditor, gbc);
+//		fileSetCommandPanel.add(pathnameEditor);
 
 		// Button: duplicate file set
-		duplicateFileSetButton = new JButton(AppIcon.RHOMB_PAIR);
-		duplicateFileSetButton.setMargin(ICON_BUTTON_MARGINS);
-		duplicateFileSetButton.setToolTipText(DUPLICATE_FILE_SET_STR);
-		duplicateFileSetButton.setActionCommand(Command.DUPLICATE_FILE_SET);
-		duplicateFileSetButton.addActionListener(this);
+//		duplicateFileSetButton = new JButton(AppIcon.RHOMB_PAIR);
+//		duplicateFileSetButton.setMargin(ICON_BUTTON_MARGINS);
+//		duplicateFileSetButton.setToolTipText(DUPLICATE_FILE_SET_STR);
+//		duplicateFileSetButton.setActionCommand(Command.DUPLICATE_FILE_SET);
+//		duplicateFileSetButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 6, 0, 0);
-		gridBag.setConstraints(duplicateFileSetButton, gbc);
-		fileSetCommandPanel.add(duplicateFileSetButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 6, 0, 0);
+//		gridBag.setConstraints(duplicateFileSetButton, gbc);
+//		fileSetCommandPanel.add(duplicateFileSetButton);
 
 		// Button: delete file set
-		deleteFileSetButton = new JButton(AppIcon.MINUS);
-		deleteFileSetButton.setMargin(ICON_BUTTON_MARGINS);
-		deleteFileSetButton.setToolTipText(DELETE_CURRENT_FILE_SET_STR);
-		deleteFileSetButton.setActionCommand(Command.DELETE_FILE_SET);
-		deleteFileSetButton.addActionListener(this);
+//		deleteFileSetButton = new JButton(AppIcon.MINUS);
+//		deleteFileSetButton.setMargin(ICON_BUTTON_MARGINS);
+//		deleteFileSetButton.setToolTipText(DELETE_CURRENT_FILE_SET_STR);
+//		deleteFileSetButton.setActionCommand(Command.DELETE_FILE_SET);
+//		deleteFileSetButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 6, 0, 0);
-		gridBag.setConstraints(deleteFileSetButton, gbc);
-		fileSetCommandPanel.add(deleteFileSetButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 6, 0, 0);
+//		gridBag.setConstraints(deleteFileSetButton, gbc);
+//		fileSetCommandPanel.add(deleteFileSetButton);
 
 		// Panel: file set navigation
 		JPanel fileSetNavigationPanel = new JPanel(gridBag);
@@ -1451,40 +1532,40 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		gridX = 0;
 
 		// Button: start of file-set list
-		fileSetStartButton = new FileSetButton(ScrollDirection.BACKWARD, true);
-		fileSetStartButton.setToolTipText(GO_TO_FILE_SET_START_STR);
-		fileSetStartButton.setActionCommand(Command.GO_TO_FILE_SET_START);
-		fileSetStartButton.addActionListener(this);
+//		fileSetStartButton = new FileSetButton(ScrollDirection.BACKWARD, true);
+//		fileSetStartButton.setToolTipText(GO_TO_FILE_SET_START_STR);
+//		fileSetStartButton.setActionCommand(Command.GO_TO_FILE_SET_START);
+//		fileSetStartButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 0, 0, 0);
-		gridBag.setConstraints(fileSetStartButton, gbc);
-		fileSetNavigationPanel.add(fileSetStartButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 0, 0, 0);
+//		gridBag.setConstraints(fileSetStartButton, gbc);
+//		fileSetNavigationPanel.add(fileSetStartButton);
 
 		// Button: previous file set
-		fileSetPreviousButton = new FileSetButton(ScrollDirection.BACKWARD);
-		fileSetPreviousButton.setToolTipText(GO_TO_FILE_SET_PREVIOUS_STR);
-		fileSetPreviousButton.setActionCommand(Command.GO_TO_FILE_SET_PREVIOUS);
-		fileSetPreviousButton.addActionListener(this);
+//		fileSetPreviousButton = new FileSetButton(ScrollDirection.BACKWARD);
+//		fileSetPreviousButton.setToolTipText(GO_TO_FILE_SET_PREVIOUS_STR);
+//		fileSetPreviousButton.setActionCommand(Command.GO_TO_FILE_SET_PREVIOUS);
+//		fileSetPreviousButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 2, 0, 0);
-		gridBag.setConstraints(fileSetPreviousButton, gbc);
-		fileSetNavigationPanel.add(fileSetPreviousButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 2, 0, 0);
+//		gridBag.setConstraints(fileSetPreviousButton, gbc);
+//		fileSetNavigationPanel.add(fileSetPreviousButton);
 
 		// Field: file-set index
 		fileSetIndexField = new FileSetIndexField();
@@ -1502,40 +1583,40 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		fileSetNavigationPanel.add(fileSetIndexField);
 
 		// Button: next file set
-		fileSetNextButton = new FileSetButton(ScrollDirection.FORWARD);
-		fileSetNextButton.setToolTipText(GO_TO_FILE_SET_NEXT_STR);
-		fileSetNextButton.setActionCommand(Command.GO_TO_FILE_SET_NEXT);
-		fileSetNextButton.addActionListener(this);
+//		fileSetNextButton = new FileSetButton(ScrollDirection.FORWARD);
+//		fileSetNextButton.setToolTipText(GO_TO_FILE_SET_NEXT_STR);
+//		fileSetNextButton.setActionCommand(Command.GO_TO_FILE_SET_NEXT);
+//		fileSetNextButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 2, 0, 0);
-		gridBag.setConstraints(fileSetNextButton, gbc);
-		fileSetNavigationPanel.add(fileSetNextButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 2, 0, 0);
+//		gridBag.setConstraints(fileSetNextButton, gbc);
+//		fileSetNavigationPanel.add(fileSetNextButton);
 
 		// Button: end of file-set list
-		fileSetEndButton = new FileSetButton(ScrollDirection.FORWARD, true);
-		fileSetEndButton.setToolTipText(GO_TO_FILE_SET_END_STR);
-		fileSetEndButton.setActionCommand(Command.GO_TO_FILE_SET_END);
-		fileSetEndButton.addActionListener(this);
+//		fileSetEndButton = new FileSetButton(ScrollDirection.FORWARD, true);
+//		fileSetEndButton.setToolTipText(GO_TO_FILE_SET_END_STR);
+//		fileSetEndButton.setActionCommand(Command.GO_TO_FILE_SET_END);
+//		fileSetEndButton.addActionListener(this);
 
-		gbc.gridx = gridX++;
-		gbc.gridy = 0;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.NONE;
-		gbc.insets = new Insets(0, 2, 0, 0);
-		gridBag.setConstraints(fileSetEndButton, gbc);
-		fileSetNavigationPanel.add(fileSetEndButton);
+//		gbc.gridx = gridX++;
+//		gbc.gridy = 0;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 0.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.NONE;
+//		gbc.insets = new Insets(0, 2, 0, 0);
+//		gridBag.setConstraints(fileSetEndButton, gbc);
+//		fileSetNavigationPanel.add(fileSetEndButton);
 
 		// Label: pathname
 		JLabel pathnameLabel = new FLabel(PATHNAME_STR);
@@ -1557,17 +1638,17 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		pathnameEditor.addImportListener(this);
 		pathnameEditor.addUnixStyleObserver();
 
-		gbc.gridx = 1;
-		gbc.gridy = gridY++;
-		gbc.gridwidth = 1;
-		gbc.gridheight = 1;
-		gbc.weightx = 1.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.LINE_START;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
-		gbc.insets = AppConstants.COMPONENT_INSETS;
-		gridBag.setConstraints(pathnameEditor, gbc);
-		mainPanel.add(pathnameEditor);
+//		gbc.gridx = 1;
+//		gbc.gridy = gridY++;
+//		gbc.gridwidth = 1;
+//		gbc.gridheight = 1;
+//		gbc.weightx = 1.0;
+//		gbc.weighty = 0.0;
+//		gbc.anchor = GridBagConstraints.LINE_START;
+//		gbc.fill = GridBagConstraints.HORIZONTAL;
+//		gbc.insets = AppConstants.COMPONENT_INSETS;
+//		gridBag.setConstraints(pathnameEditor, gbc);
+//		mainPanel.add(pathnameEditor);
 
 		// Label: inclusion filter
 		JLabel inclusionFilterLabel = new FLabel(INCLUDE_STR);
@@ -1900,6 +1981,184 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 
 		// Make window visible
 		setVisible(true);
+                
+                
+                
+                
+                		// Set icons
+		setIconImages(AppIcon.getAppIconImages());
+
+
+		//----  Menu bar
+
+		JMenuBar menuBar = new JMenuBar();
+		menuBar.setBorder(null);
+
+		// File menu
+		JMenu menu = Menu.FILE.menu;
+		//menu.addMenuListener(this);
+
+		menu.add(new FMenuItem(AppCommand.OPEN_SEARCH_PARAMETERS, KeyEvent.VK_O));
+		menu.add(new FMenuItem(AppCommand.SAVE_SEARCH_PARAMETERS, KeyEvent.VK_S));
+
+		menu.addSeparator();
+
+		menu.add(new FMenuItem(AppCommand.EXIT, KeyEvent.VK_X));
+
+		menuBar.add(menu);
+
+		// Edit menu
+		menu = Menu.EDIT.menu;
+		//menu.addMenuListener(this);
+
+		menu.add(new FMenuItem(AppCommand.EDIT_FILE, KeyEvent.VK_E));
+		menu.add(new FMenuItem(AppCommand.EDIT_FILE_DEFERRED, KeyEvent.VK_D));
+
+		menuBar.add(menu);
+
+		// Search menu
+		menu = Menu.SEARCH.menu;
+		//menu.addMenuListener(this);
+
+		menu.add(new FMenuItem(AppCommand.SEARCH, KeyEvent.VK_S));
+
+		menu.addSeparator();
+
+		menu.add(new FMenuItem(AppCommand.COPY_RESULTS, KeyEvent.VK_C));
+		menu.add(new FMenuItem(AppCommand.SAVE_RESULTS, KeyEvent.VK_A));
+		menu.add(new FMenuItem(AppCommand.VIEW_SAVED_RESULTS, KeyEvent.VK_V));
+
+		menuBar.add(menu);
+
+		// View menu
+		menu = Menu.VIEW.menu;
+		//menu.addMenuListener(this);
+
+		menu.add(new FMenuItem(AppCommand.TOGGLE_CONTROL_DIALOG, KeyEvent.VK_C));
+
+		menuBar.add(menu);
+
+		// Options menu
+		menu = Menu.OPTIONS.menu;
+		//menu.addMenuListener(this);
+
+		menu.add(new FMenuItem(AppCommand.EDIT_PREFERENCES, KeyEvent.VK_P));
+
+		menuBar.add(menu);
+
+		// Set menu bar
+		setJMenuBar(menuBar);
+
+
+		//----  Text view scroll pane
+
+		// Text area: text view
+		config = AppConfig.INSTANCE;
+
+		textView = new TextArea(config.getTextViewViewableSize().width, config.getTextViewViewableSize().height,
+								config.getTextViewMaxNumColumns(), AppFont.TEXT_VIEW.getFont());
+		textView.setBlockIncrementRows(textView.getRows() - 2);
+		setTextAreaColours(textView);
+		textView.setDoubleBuffered(false);
+		textView.setAntialiasing(config.getTextViewTextAntialiasing());
+
+		textView.addMouseListener(this);
+
+		// Scroll pane: text view
+		ScrollPane textViewScrollPane = new ScrollPane(textView);
+
+
+		//----  Result area
+
+		// Text area: results
+		resultArea = new ResultArea(config.getTextViewViewableSize().width, config.getResultAreaNumRows());
+		resultArea.setModel(new ResultList());
+		resultArea.setBlockIncrementRows(resultArea.getRows() - 1);
+		setTextAreaColours(resultArea);
+		resultArea.setDoubleBuffered(false);
+		resultArea.setAntialiasing(TextRendering.getAntialiasing());
+
+		resultArea.addMouseListener(this);
+		getResultList().addChangeListener(resultArea);
+
+		// Scroll pane: results
+		ScrollPane resultAreaScrollPane = new ScrollPane(resultArea);
+
+
+		//----  Main panel
+
+//		GridBagLayout gridBag = new GridBagLayout();
+//		GridBagConstraints gbc = new GridBagConstraints();
+//
+//		JPanel mainPanel = new JPanel(gridBag);
+//
+//		int gridY = 0;
+
+		gbc.gridx = 0;
+		gbc.gridy = gridY++;
+		gbc.gridwidth = 1;
+		gbc.gridheight = 1;
+		gbc.weightx = 0.0;
+		gbc.weighty = 0.0;
+		gbc.anchor = GridBagConstraints.NORTH;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		gridBag.setConstraints(textViewScrollPane, gbc);
+		mainPanel.add(textViewScrollPane);
+
+		gbc.gridx = 0;
+		gbc.gridy = gridY++;
+		gbc.gridwidth = 1;
+		gbc.gridheight = 1;
+		gbc.weightx = 0.0;
+		gbc.weighty = 0.0;
+		gbc.anchor = GridBagConstraints.NORTH;
+		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.insets = new Insets(0, 0, 0, 0);
+		gridBag.setConstraints(resultAreaScrollPane, gbc);
+		mainPanel.add(resultAreaScrollPane);
+
+		// Set transfer handler on main panel
+		mainPanel.setTransferHandler(FileTransferHandler.INSTANCE);
+
+		// Add listener
+		mainPanel.addMouseListener(this);
+
+
+		//----  Window
+
+		// Set content pane
+		setContentPane(mainPanel);
+
+		// Update title
+		updateTitle();
+
+		// Dispose of window explicitly
+		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+
+		// Handle window closing
+		addWindowListener(new WindowAdapter()
+		{
+			@Override
+			public void windowClosing(WindowEvent event)
+			{
+				AppCommand.EXIT.execute();
+			}
+		});
+
+		// Prevent window from being resized
+		setResizable(false);
+
+		// Resize window to its preferred size
+		pack();
+
+		// Set location of window
+		if (config.isMainWindowLocation())
+			setLocation(GuiUtils.getLocationWithinScreen(this, config.getMainWindowLocation()));
+
+		// Make window visible
+		//setVisible(true);
+                
 
 	}
 
@@ -1919,6 +2178,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 	private static SearchParameters getSearchParams()
 	{
 		return App.INSTANCE.getSearchParams();
+                
 	}
 
 	//------------------------------------------------------------------
@@ -2254,12 +2514,12 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 			case FILE:
 			case LIST:
 				if (file.isDirectory())
-					fileSetKindComboBox.setSelectedValue(FileSet.Kind.DIRECTORY);
+					fileSetKindComboBox.setSelectedItem(FileSet.Kind.DIRECTORY);
 				break;
 
 			case DIRECTORY:
 				if (file.isFile())
-					fileSetKindComboBox.setSelectedValue(FileSet.Kind.FILE);
+					fileSetKindComboBox.setSelectedItem(FileSet.Kind.FILE);
 				break;
 
 			case RESULTS:
@@ -2296,7 +2556,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 	{
 		if (!isBeyondLastFileSet())
 		{
-			FileSet fileSet = new FileSet(fileSetKindComboBox.getSelectedValue(),
+			FileSet fileSet = new FileSet((FileSet.Kind) fileSetKindComboBox.getSelectedItem(),
 										  pathnameEditor.getItems(),
 										  pathnameEditor.getIndex(),
 										  inclusionFilterEditor.getItems(),
@@ -2315,7 +2575,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		boolean isFileSet = (fileSet != null);
 
 		fileSetIndexField.setValues(fileSetIndex, getMaxFileSetIndex());
-		fileSetKindComboBox.setSelectedValue(isFileSet ? fileSet.getKind() : null);
+		fileSetKindComboBox.setSelectedItem(isFileSet ? fileSet.getKind() : null);
 		pathnameEditor.setItems(isFileSet ? fileSet.getPathnames() : null);
 		pathnameEditor.setIndex(isFileSet ? fileSet.getPathnameIndex() : -1);
 		inclusionFilterEditor.setItems(isFileSet ? fileSet.getInclusionFilters() : null);
@@ -2341,7 +2601,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 		boolean notScrolling = !isScrolling();
 
 		fileSetKindComboBox.setEnabled(isFileSet);
-		insertFileSetButton.setEnabled(canAddFileSet);
+		pathnameEditor.setEnabled(canAddFileSet);
 		duplicateFileSetButton.setEnabled(isFileSet && canAddFileSet);
 		deleteFileSetButton.setEnabled(isFileSet);
 		fileSetStartButton.setEnabled((fileSetIndex > 0) && notScrolling);
@@ -2382,7 +2642,7 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 
 	private FileSet.Kind getFileSetKind()
 	{
-		return fileSetKindComboBox.getSelectedValue();
+		return (FileSet.Kind) fileSetKindComboBox.getSelectedItem();
 	}
 
 	//------------------------------------------------------------------
@@ -2755,14 +3015,14 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 	private	int						fileSetIndex;
 	private	Timer					scrollTimer;
 	private	MainWindow				mainWindow;
-	private	FComboBox<FileSet.Kind>	fileSetKindComboBox;
-	private	JButton					insertFileSetButton;
-	private	JButton					duplicateFileSetButton;
-	private	JButton					deleteFileSetButton;
-	private	FileSetButton			fileSetStartButton;
-	private	FileSetButton			fileSetEndButton;
-	private	FileSetButton			fileSetPreviousButton;
-	private	FileSetButton			fileSetNextButton;
+//	private	FComboBox<FileSet.Kind>	fileSetKindComboBox;
+//	private	JButton					insertFileSetButton;
+//	private	JButton					duplicateFileSetButton;
+//	private	JButton					deleteFileSetButton;
+//	private	FileSetButton			fileSetStartButton;
+//	private	FileSetButton			fileSetEndButton;
+//	private	FileSetButton			fileSetPreviousButton;
+//	private	FileSetButton			fileSetNextButton;
 	private	FileSetIndexField		fileSetIndexField;
 	private	PathnameEditor			pathnameEditor;
 	private	FilterEditor			inclusionFilterEditor;
@@ -2773,4 +3033,1324 @@ public class AppStandardizer extends javax.swing.JFrame implements ActionListene
 	private	JCheckBox				regexCheckBox;
 	private	JCheckBox				ignoreCaseCheckBox;
 	private	JCheckBox				showNotFoundCheckBox;
+        
+        
+        
+        
+        
+        ////////////////////////////////////////////////////////////////////////
+//  Constants
+////////////////////////////////////////////////////////////////////////
+
+	public static final		int	HIGHLIGHT_MARGIN_ROWS		= 4;
+	public static final		int	HIGHLIGHT_MARGIN_COLUMNS	= 8;
+
+	private static final	String	SEARCHING_STR				= "Searching ";
+	private static final	String	OPEN_SEARCH_PARAMS_STR		= "Open search parameters";
+	private static final	String	SAVE_SEARCH_PARAMS_STR		= "Save search parameters";
+	private static final	String	WRITE_SEARCH_PARAMS_STR		= "Write search parameters";
+	private static final	String	SAVE_STR					= "Save";
+	private static final	String	DISCARD_STR					= "Discard";
+	private static final	String	SAVE_MESSAGE_STR			= "The search parameters have changed.\nDo you want to "
+																	+ "save the current search parameters?";
+	private static final	String	TARGET_NOT_FOUND_STR		= "Files in which the target was not found";
+	private static final	String	UNPROCESSED_STR				= "Unprocessed files or directories";
+	private static final	String	NO_CANONICAL_PATHNAME_STR	= "Failed to get canonical pathname";
+	private static final	String	PROCESSING_ERROR_STR		= "Error processing file or directory";
+	private static final	String	ATTRIBUTES_NOT_SET_STR		= "File attributes not set";
+
+	private static final	char	TAB_GLYPH_CHAR	= '\u2192';
+
+	private interface Command2
+	{
+		String	SHOW_CONTEXT_MENU	= "showContextMenu";
+	}
+
+////////////////////////////////////////////////////////////////////////
+//  Enumerated types
+////////////////////////////////////////////////////////////////////////
+
+
+	// MENUS
+
+
+	private enum Menu
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		FILE
+		(
+			"File",
+			KeyEvent.VK_F
+		)
+		{
+			protected void update()
+			{
+				getWindow().updateCommands();
+			}
+		},
+
+		EDIT
+		(
+			"Edit",
+			KeyEvent.VK_E
+		)
+		{
+			protected void update()
+			{
+				getWindow().updateCommands();
+			}
+		},
+
+		SEARCH
+		(
+			"Search",
+			KeyEvent.VK_S
+		)
+		{
+			protected void update()
+			{
+				getMenu().setEnabled(!getWindow().searching);
+				getWindow().updateCommands();
+			}
+		},
+
+		VIEW
+		(
+			"View",
+			KeyEvent.VK_V
+		)
+		{
+			protected void update()
+			{
+				getWindow().updateCommands();
+			}
+		},
+
+		OPTIONS
+		(
+			"Options",
+			KeyEvent.VK_O
+		)
+		{
+			protected void update()
+			{
+				getMenu().setEnabled(!getWindow().searching);
+				getWindow().updateCommands();
+			}
+		};
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private Menu(String text,
+					 int    keyCode)
+		{
+			menu = new FMenu(text, keyCode);
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Abstract methods
+	////////////////////////////////////////////////////////////////////
+
+		protected abstract void update();
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods
+	////////////////////////////////////////////////////////////////////
+
+		protected JMenu getMenu()
+		{
+			return menu;
+		}
+
+		//--------------------------------------------------------------
+
+		protected MainWindow getWindow()
+		{
+			return App.INSTANCE.getMainWindow();
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance fields
+	////////////////////////////////////////////////////////////////////
+
+		private	JMenu	menu;
+
+	}
+
+	//==================================================================
+
+
+	// ERROR IDENTIFIERS
+
+
+	private enum ErrorId2
+		implements AppException.IId
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		NO_EDITOR_COMMAND
+		("No editor command is defined."),
+
+		FAILED_TO_EXECUTE_EDITOR_COMMAND
+		("Failed to execute the editor command.");
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private ErrorId2(String message)
+		{
+			this.message = message;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : AppException.IId interface
+	////////////////////////////////////////////////////////////////////
+
+		public String getMessage()
+		{
+			return message;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance fields
+	////////////////////////////////////////////////////////////////////
+
+		private	String	message;
+
+	}
+
+	//==================================================================
+
+////////////////////////////////////////////////////////////////////////
+//  Member classes : non-inner classes
+////////////////////////////////////////////////////////////////////////
+
+
+	// SCROLL PANE CLASS
+
+
+	private static class ScrollPane
+		extends JScrollPane
+		implements ChangeListener
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		private static final	int	VERTICAL_MARGIN		= 2;
+		private static final	int	HORIZONTAL_MARGIN	= 4;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private ScrollPane(TextArea textArea)
+		{
+			// Call superclass constructor
+			super(textArea, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+				  JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+
+			// Initialise instance fields
+			this.textArea = textArea;
+
+			// Set viewport in text area
+			textArea.setViewport(getViewport());
+
+			// Set component attributes
+			setBackground(AppConfig.INSTANCE.getTextAreaBackgroundColour());
+			setCorner(JScrollPane.LOWER_RIGHT_CORNER, new JPanel());
+			GuiUtils.setViewportBorder(this, VERTICAL_MARGIN, HORIZONTAL_MARGIN);
+			getViewport().setBackground(AppConfig.INSTANCE.getTextAreaBackgroundColour());
+			getViewport().setFocusable(false);
+			getVerticalScrollBar().setFocusable(false);
+			getHorizontalScrollBar().setFocusable(false);
+
+			// Add listeners
+			getVerticalScrollBar().getModel().addChangeListener(this);
+			getHorizontalScrollBar().getModel().addChangeListener(this);
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : ChangeListener interface
+	////////////////////////////////////////////////////////////////////
+
+		public void stateChanged(ChangeEvent event)
+		{
+			// Update viewport position if neither scroll bar knob is being dragged
+			if (!getVerticalScrollBar().getValueIsAdjusting() &&
+				 !getHorizontalScrollBar().getValueIsAdjusting())
+				textArea.snapViewPosition();
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance fields
+	////////////////////////////////////////////////////////////////////
+
+		private	TextArea	textArea;
+
+	}
+
+	//==================================================================
+
+
+	// RESULT AREA CLASS
+
+
+	private static class ResultArea
+		extends TextArea
+		implements MouseMotionListener
+	{
+
+	////////////////////////////////////////////////////////////////////
+	//  Constants
+	////////////////////////////////////////////////////////////////////
+
+		private static final	int	MAX_NUM_COLUMNS	= 1024;
+
+	////////////////////////////////////////////////////////////////////
+	//  Constructors
+	////////////////////////////////////////////////////////////////////
+
+		private ResultArea(int columns,
+						   int rows)
+		{
+			// Call superclass constructor
+			super(columns, rows, MAX_NUM_COLUMNS, AppFont.RESULT_AREA.getFont());
+
+			// Initialise instance fields
+			selectedIndex = -1;
+
+			// Add listeners
+			addMouseMotionListener(this);
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : MouseMotionListener interface
+	////////////////////////////////////////////////////////////////////
+
+		public void mouseDragged(MouseEvent event)
+		{
+			if (SwingUtilities.isLeftMouseButton(event) && (selectedIndex >= 0))
+			{
+				int index = getIndex(event);
+				if ((index == selectedIndex) != armed)
+				{
+					armed = !armed;
+					((ResultList)getModel()).setElementSelected(selectedIndex, armed);
+					repaint();
+				}
+			}
+		}
+
+		//--------------------------------------------------------------
+
+		public void mouseMoved(MouseEvent event)
+		{
+			// do nothing
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods : overriding methods
+	////////////////////////////////////////////////////////////////////
+
+		@Override
+		public void mousePressed(MouseEvent event)
+		{
+			super.mousePressed(event);
+
+			if (SwingUtilities.isLeftMouseButton(event) && event.isControlDown())
+			{
+				int index = getIndex(event);
+				if (index >= 0)
+				{
+					ResultList resultList = (ResultList)getModel();
+					String pathname = resultList.getSearchedPathname(index);
+					if (pathname != null)
+					{
+						resultList.setElementSelected(index, true);
+						repaint();
+						selectedIndex = index;
+						armed = true;
+					}
+				}
+			}
+		}
+
+		//--------------------------------------------------------------
+
+		@Override
+		public void mouseReleased(MouseEvent event)
+		{
+			if (SwingUtilities.isLeftMouseButton(event) && (selectedIndex >= 0))
+			{
+				ResultList resultList = (ResultList)getModel();
+				int index = getIndex(event);
+				if ((index == selectedIndex) && armed)
+				{
+					try
+					{
+						editFile(resultList.getSearchedPathname(index));
+					}
+					catch (AppException e)
+					{
+						App.INSTANCE.showErrorMessage(App.SHORT_NAME, e);
+					}
+				}
+
+				resultList.setElementSelected(selectedIndex, false);
+				repaint();
+				selectedIndex = -1;
+				armed = false;
+			}
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance methods
+	////////////////////////////////////////////////////////////////////
+
+		private int getIndex(MouseEvent event)
+		{
+			int index = -1;
+			int x = event.getX();
+			if ((x >= 0) && (x < getWidth()))
+			{
+				int row = event.getY() / getRowHeight();
+				ResultList resultList = (ResultList)getModel();
+				if ((row >= 0) && (row < resultList.getNumLines()))
+				{
+					String pathname = resultList.getSearchedPathname(row);
+					if ((pathname != null) && (x < getFontMetrics(getFont()).stringWidth(pathname)))
+						 index = row;
+				}
+			}
+			return index;
+		}
+
+		//--------------------------------------------------------------
+
+	////////////////////////////////////////////////////////////////////
+	//  Instance fields
+	////////////////////////////////////////////////////////////////////
+
+		private	int		selectedIndex;
+		private	boolean	armed;
+
+	}
+
+	//==================================================================
+
+////////////////////////////////////////////////////////////////////////
+//  Constructors
+////////////////////////////////////////////////////////////////////////
+
+//	public MainWindow2()
+//	{
+//
+//
+//
+//	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Class methods
+////////////////////////////////////////////////////////////////////////
+
+	private static SearchParameters getSearchParams2()
+	{
+		return App.INSTANCE.getSearchParams();
+	}
+
+	//------------------------------------------------------------------
+
+	private static void setTextAreaColours(TextArea textArea)
+	{
+		AppConfig config = AppConfig.INSTANCE;
+		textArea.setForeground(config.getTextAreaTextColour());
+		textArea.setBackground(config.getTextAreaBackgroundColour());
+		textArea.setHighlightTextColour(config.getTextAreaHighlightTextColour());
+		textArea.setHighlightBackgroundColour(config.getTextAreaHighlightBackgroundColour());
+	}
+
+	//------------------------------------------------------------------
+
+	private static void editFile(String pathname)
+		throws AppException
+	{
+		final	char	ESCAPE_CHAR					= '%';
+		final	char	PATHNAME_PLACEHOLDER_CHAR	= 'f';
+
+		// Parse editor command to create list of arguments
+		String command = AppConfig.INSTANCE.getEditorCommand();
+		if (StringUtils.isNullOrEmpty(command))
+			throw new AppException(ErrorId2.NO_EDITOR_COMMAND);
+
+		List<String> arguments = new ArrayList<>();
+		StringBuilder buffer = new StringBuilder();
+		int index = 0;
+		while (index < command.length())
+		{
+			char ch = command.charAt(index++);
+			switch (ch)
+			{
+				case ESCAPE_CHAR:
+					if (index < command.length())
+					{
+						ch = command.charAt(index++);
+						if (ch == PATHNAME_PLACEHOLDER_CHAR)
+							buffer.append(pathname);
+						else
+							buffer.append(ch);
+					}
+					break;
+
+				case ' ':
+					if (buffer.length() > 0)
+					{
+						arguments.add(PropertyString.parsePathname(buffer.toString()));
+						buffer.setLength(0);
+					}
+					break;
+
+				default:
+					buffer.append(ch);
+					break;
+			}
+		}
+		if (buffer.length() > 0)
+			arguments.add(PropertyString.parsePathname(buffer.toString()));
+
+		// Execute editor command
+		try
+		{
+			new ProcessBuilder(arguments).start();
+		}
+		catch (IOException e)
+		{
+			throw new AppException(ErrorId2.FAILED_TO_EXECUTE_EDITOR_COMMAND, e);
+		}
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : ActionListener interface
+////////////////////////////////////////////////////////////////////////
+
+	public void actionPerformed2(ActionEvent event)
+	{
+		String command = event.getActionCommand();
+
+		if (command.equals(Command2.SHOW_CONTEXT_MENU))
+			onShowContextMenu2();
+
+		updateCommands();
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : MenuListener interface
+////////////////////////////////////////////////////////////////////////
+
+	public void menuCanceled(MenuEvent event)
+	{
+		// do nothing
+	}
+
+	//------------------------------------------------------------------
+
+	public void menuDeselected(MenuEvent event)
+	{
+		// do nothing
+	}
+
+	//------------------------------------------------------------------
+
+	public void menuSelected(MenuEvent event)
+	{
+		Object eventSource = event.getSource();
+		for (Menu menu : Menu.values())
+		{
+			if (eventSource == menu.menu)
+				menu.update();
+		}
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods : MouseListener interface
+////////////////////////////////////////////////////////////////////////
+
+	public void mouseClicked2(MouseEvent event)
+	{
+		// do nothing
+	}
+
+	//------------------------------------------------------------------
+
+	public void mouseEntered2(MouseEvent event)
+	{
+		// do nothing
+	}
+
+	//------------------------------------------------------------------
+
+	public void mouseExited2(MouseEvent event)
+	{
+		// do nothing
+	}
+
+	//------------------------------------------------------------------
+
+	public void mousePressed2(MouseEvent event)
+	{
+		showContextMenu2(event);
+	}
+
+	//------------------------------------------------------------------
+
+	public void mouseReleased2(MouseEvent event)
+	{
+		showContextMenu2(event);
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance methods
+////////////////////////////////////////////////////////////////////////
+
+	public TextModel getTextModel()
+	{
+		return textModel;
+	}
+
+	//------------------------------------------------------------------
+
+	public ControlDialog getControlDialog()
+	{
+		return controlDialog;
+	}
+
+	//------------------------------------------------------------------
+
+	public void openControlDialog()
+	{
+		//if (controlDialog == null)
+			//controlDialog = ControlDialog.showDialog(this);
+	}
+
+	//------------------------------------------------------------------
+
+	public void initTextModel(File         file,
+							  StringBuffer text,
+							  boolean      visible)
+	{
+		// Perform any deferred edit
+		deferredEdit();
+
+		// Initialise text model
+		textModel = new TextModel(file, text, TAB_GLYPH_CHAR);
+
+		// Set model in text view and update window title
+		if (visible)
+		{
+			textView.setModel(textModel);
+			textModel.addChangeListener(textView);
+
+			currentPathname = (file == null)
+								? AppConstants.CLIPBOARD_STR
+								: Utils.getPathname(file, AppConfig.INSTANCE.isShowUnixPathnames());
+			updateTitle();
+		}
+		else
+		{
+			textView.setModel(null);
+
+			if (currentPathname != null)
+			{
+				currentPathname = null;
+				updateTitle();
+			}
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	public void makeTextSelectionViewable()
+	{
+		if (textView.getModel() != null)
+		{
+			// Get selection from text model
+			TextModel.Selection selection = textModel.getSelection();
+
+			// Get x coordinate of view
+			TextArea.Line[] lines = textModel.getLines(selection.startRow, selection.startRow + 1);
+			int selectionX =
+						(lines.length == 0)
+							? 0
+							: textView.getFontMetrics(textView.getFont()).
+								stringWidth(lines[0].text.substring(0, lines[0].highlightStartOffset));
+			int verticalMargin = HIGHLIGHT_MARGIN_COLUMNS * textView.getColumnWidth();
+			int x = Math.min(Math.max(0, selectionX + verticalMargin -
+																	textView.getViewport().getWidth()),
+							 textView.getMaximumX());
+
+			// Get y coordinate of view
+			int numRows = textView.getRows();
+			int maxRowIndex = Math.max(0, textModel.getNumLines() - numRows);
+			int startRow = textView.getViewport().getViewPosition().y / textView.getRowHeight();
+			if ((selection.startRow < startRow + HIGHLIGHT_MARGIN_ROWS) ||
+				 (selection.endRow >= startRow + numRows - HIGHLIGHT_MARGIN_ROWS))
+				startRow = Math.min(Math.max(0, selection.startRow - HIGHLIGHT_MARGIN_ROWS),
+									maxRowIndex);
+			int y = startRow * textView.getRowHeight();
+
+			// Set view position
+			textView.setViewPosition(x, y);
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	public List<File> getResultFiles()
+	{
+		return getResultList().getFiles();
+	}
+
+	//------------------------------------------------------------------
+
+	public void appendResult(TextSearcher.FileResult result)
+	{
+		getResultList().addFile(result);
+		updateResultAreaViewPosition();
+	}
+
+	//------------------------------------------------------------------
+
+	public void searchDialogClosed(TextSearcher.Option option)
+	{
+		if (searchDialog != null)
+		{
+			searchDialog = null;
+			search(new Task.ResumeSearch(option));
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	public void executeCommand(AppCommand command)
+	{
+		try
+		{
+			switch (command)
+			{
+				case IMPORT_FILE:
+					onImportFile();
+					break;
+
+				case OPEN_SEARCH_PARAMETERS:
+					onOpenSearchParams();
+					break;
+
+				case SAVE_SEARCH_PARAMETERS:
+					onSaveSearchParams();
+					break;
+
+				case EXIT:
+					onExit();
+					break;
+
+				case EDIT_FILE:
+					onEditFile();
+					break;
+
+				case EDIT_FILE_DEFERRED:
+					onEditFileDeferred();
+					break;
+
+				case SEARCH:
+					onSearch();
+					break;
+
+				case COPY_RESULTS:
+					onCopyResults();
+					break;
+
+				case SAVE_RESULTS:
+					onSaveResults();
+					break;
+
+				case VIEW_SAVED_RESULTS:
+					onViewSavedResults();
+					break;
+
+				case TOGGLE_CONTROL_DIALOG:
+					onToggleControlDialog();
+					break;
+
+				case EDIT_PREFERENCES:
+					onEditPreferences();
+					break;
+			}
+		}
+		catch (AppException e)
+		{
+			App.INSTANCE.showErrorMessage(App.SHORT_NAME, e);
+		}
+
+		updateCommands();
+	}
+
+	//------------------------------------------------------------------
+
+	public void updateCommands2()
+	{
+		boolean isFileSet = (controlDialog != null) && !controlDialog.isBeyondLastFileSet();
+		boolean canEdit = (textModel != null) && (textModel.getFile() != null) &&
+						  (currentPathname != null) &&
+						  (AppConfig.INSTANCE.getEditorCommand() != null);
+
+		AppCommand.IMPORT_FILE.setEnabled(isFileSet);
+		AppCommand.OPEN_SEARCH_PARAMETERS.setEnabled(!searching);
+		AppCommand.SAVE_SEARCH_PARAMETERS.setEnabled(!searching);
+		AppCommand.EXIT.setEnabled(true);
+		AppCommand.EDIT_FILE.setEnabled(canEdit);
+		AppCommand.EDIT_FILE_DEFERRED.setEnabled(canEdit && (deferredFile == null) && searching &&
+												  (searchKind == SearchDialog.Kind.REPLACE));
+		AppCommand.SEARCH.setEnabled(isFileSet && !searching);
+		AppCommand.COPY_RESULTS.setEnabled(!searching && !getResultList().isEmpty());
+		AppCommand.SAVE_RESULTS.setEnabled(!searching && getResultList().isSearchedFiles());
+		AppCommand.VIEW_SAVED_RESULTS.setEnabled(!searching && !getResultList().getFiles().isEmpty());
+		AppCommand.TOGGLE_CONTROL_DIALOG.setEnabled(true);
+		AppCommand.TOGGLE_CONTROL_DIALOG.setName(((controlDialog != null) && controlDialog.isVisible())
+																	? AppCommand.HIDE_CONTROL_DIALOG_STR
+																	: AppCommand.SHOW_CONTROL_DIALOG_STR);
+		AppCommand.EDIT_PREFERENCES.setEnabled(!searching);
+	}
+
+	//------------------------------------------------------------------
+
+	public void showContextMenu(MouseEvent event,
+								Component  component)
+	{
+		if ((event == null) || event.isPopupTrigger())
+		{
+			// Create context menu
+			if (contextMenu == null)
+			{
+				contextMenu = new JPopupMenu();
+
+				contextMenu.add(new FMenuItem(AppCommand.SEARCH));
+
+				contextMenu.addSeparator();
+
+				contextMenu.add(new FMenuItem(AppCommand.TOGGLE_CONTROL_DIALOG));
+
+				contextMenu.addSeparator();
+
+				contextMenu.add(new FMenuItem(AppCommand.EDIT_FILE));
+				contextMenu.add(new FMenuItem(AppCommand.EDIT_FILE_DEFERRED));
+
+				contextMenu.addSeparator();
+
+				contextMenu.add(new FMenuItem(AppCommand.COPY_RESULTS));
+				contextMenu.add(new FMenuItem(AppCommand.SAVE_RESULTS));
+				contextMenu.add(new FMenuItem(AppCommand.VIEW_SAVED_RESULTS));
+
+				contextMenu.addSeparator();
+
+				contextMenu.add(new FMenuItem(AppCommand.EDIT_PREFERENCES));
+			}
+
+			// Update commands for menu items
+			updateCommands2();
+
+			// Display menu
+			if (event == null)
+				contextMenu.show(component, 0, 0);
+			else
+				contextMenu.show(event.getComponent(), event.getX(), event.getY());
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	private void showContextMenu2(MouseEvent event)
+	{
+		showContextMenu(event, textView);
+	}
+
+	//------------------------------------------------------------------
+
+	private ResultList getResultList()
+	{
+		return (ResultList)resultArea.getModel();
+	}
+
+	//------------------------------------------------------------------
+
+	private void updateTitle()
+	{
+		setTitle((currentPathname == null) ? App.LONG_NAME + " " : App.SHORT_NAME + " - " + currentPathname);
+	}
+
+	//------------------------------------------------------------------
+
+	private void updateResultAreaViewPosition()
+	{
+		int y = Math.max(0, getResultList().getNumLines() - resultArea.getRows()) * resultArea.getRowHeight();
+		resultArea.setViewPosition(0, y);
+	}
+
+	//------------------------------------------------------------------
+
+	private void showSearchDialog(SearchDialog.Kind dialogKind)
+	{
+		searchDialog = SearchDialog.showDialog(controlDialog, dialogKind, controlDialog.getTargetString(true),
+											   currentPathname, textModel.getSelection().startRow,
+											   textModel.getSelectionStart(), textModel.getSelectionEnd());
+	}
+
+	//------------------------------------------------------------------
+
+	private boolean closeSearchParams()
+	{
+		// Update search parameters
+		controlDialog.updateSearchParams();
+
+		// Prompt to save search parameters
+		SearchParameters searchParams = getSearchParams();
+		if ((searchParams.getFile() != null) && searchParams.isChanged())
+		{
+			String[] optionStrs = Utils.getOptionStrings(SAVE_STR, DISCARD_STR);
+			int result = JOptionPane.showOptionDialog(this, SAVE_MESSAGE_STR, App.SHORT_NAME,
+													  JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE,
+													  null, optionStrs, optionStrs[0]);
+			if (result == JOptionPane.YES_OPTION)
+				searchParams.write();
+			else if (result != JOptionPane.NO_OPTION)
+				return false;
+		}
+		return true;
+	}
+
+	//------------------------------------------------------------------
+
+	private File chooseOpen()
+	{
+		if (openFileChooser == null)
+		{
+			openFileChooser = new JFileChooser(getSearchParams().getFile());
+			openFileChooser.setDialogTitle(OPEN_SEARCH_PARAMS_STR);
+			openFileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			openFileChooser.setFileFilter(new FilenameSuffixFilter(AppConstants.XML_FILES_STR,
+																   AppConstants.XML_FILE_SUFFIX));
+		}
+		openFileChooser.rescanCurrentDirectory();
+		return ((openFileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
+																		? openFileChooser.getSelectedFile()
+																		: null);
+	}
+
+	//------------------------------------------------------------------
+
+	private File chooseSave(File file)
+	{
+		if (saveFileChooser == null)
+		{
+			saveFileChooser = new JFileChooser(getSearchParams().getFile());
+			saveFileChooser.setDialogTitle(SAVE_SEARCH_PARAMS_STR);
+			saveFileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			saveFileChooser.setFileFilter(new FilenameSuffixFilter(AppConstants.XML_FILES_STR,
+																   AppConstants.XML_FILE_SUFFIX));
+		}
+		saveFileChooser.setSelectedFile((file == null) ? new File("") : file);
+		saveFileChooser.rescanCurrentDirectory();
+		return ((saveFileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION)
+								? Utils.appendSuffix(saveFileChooser.getSelectedFile(), AppConstants.XML_FILE_SUFFIX)
+								: null);
+	}
+
+	//------------------------------------------------------------------
+
+	private void search(Task task)
+	{
+		// Perform search
+		TextSearcher textSearcher = App.INSTANCE.getTextSearcher();
+		try
+		{
+			// Hide control dialog
+			if (controlDialog.isVisible() && AppConfig.INSTANCE.isHideControlDialogWhenSearching())
+			{
+				controlDialog.setVisible(false);
+				controlDialogHidden = true;
+			}
+
+			// Update commands for search in progress
+			searching = true;
+			updateCommands2();
+
+			// Display search progress dialog
+			TaskProgressDialog.showDialog(this, SEARCHING_STR + AppConstants.ELLIPSIS_STR, task);
+
+			// Bring window to front
+			toFront();
+
+			// Display dialog of search options
+			switch (textSearcher.getStopSubstate())
+			{
+				case MATCH:
+					showSearchDialog(searchKind);
+					break;
+
+				case PREVIEW:
+					showSearchDialog(SearchDialog.Kind.PREVIEW);
+					break;
+
+				case DONE:
+					// do nothing
+					break;
+			}
+		}
+		catch (AppException e)
+		{
+			App.INSTANCE.showErrorMessage(App.SHORT_NAME, e);
+		}
+
+		// Update results at end of search
+		if (searchDialog == null)
+		{
+			// Indicate end of search
+			searching = false;
+
+			// Show control dialog
+			if (controlDialogHidden && !controlDialog.isVisible())
+				controlDialog.setVisible(true);
+
+			// Perform any deferred edit
+			deferredEdit();
+
+			// Update results with aggregate result
+			ResultList resultList = getResultList();
+			resultList.addAggregate(textSearcher.getAggregateResult());
+
+			// Update results with files in which the target was not found
+			List<File> files = textSearcher.getTargetNotFoundFiles();
+			if (!files.isEmpty())
+				resultList.addFiles(TARGET_NOT_FOUND_STR, files, true);
+
+			// Update results with erroneous pathnames
+			files = PathnameFilter.getErrors();
+			if (!files.isEmpty())
+				resultList.addFiles(UNPROCESSED_STR + ": " + NO_CANONICAL_PATHNAME_STR, files, false);
+
+			// Update results with unprocessed files
+			files = textSearcher.getUnprocessedFiles();
+			if (!files.isEmpty())
+				resultList.addFiles(UNPROCESSED_STR + ": " + PROCESSING_ERROR_STR, files, true);
+
+			// Update results with files whose attributes were not set
+			files = textSearcher.getAttributesNotSetFiles();
+			if (!files.isEmpty())
+				resultList.addFiles(UNPROCESSED_STR + ": " + ATTRIBUTES_NOT_SET_STR, files, true);
+
+			// Update result area
+			updateResultAreaViewPosition();
+
+			// Update commands
+			updateCommands2();
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	private void deferredEdit()
+	{
+		if (textModel != null)
+		{
+			File file = textModel.getFile();
+			if ((file != null) && (file == deferredFile))
+			{
+				try
+				{
+					deferredFile = null;
+					onEditFile();
+				}
+				catch (AppException e)
+				{
+					App.INSTANCE.showErrorMessage(App.SHORT_NAME, e);
+				}
+			}
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	private void updateConfiguration()
+	{
+		// Set configuration properties
+		AppConfig config = AppConfig.INSTANCE;
+		Dimension size = controlDialog.getParameterEditorSize();
+		if (!controlDialog.getInitialParameterEditorSize().equals(size))
+		{
+			size.width = Math.min(Math.max(ParameterEditor.MIN_NUM_COLUMNS, size.width),
+								  ParameterEditor.MAX_NUM_COLUMNS);
+			size.height = Math.min(Math.max(ParameterEditor.MIN_NUM_ROWS, size.height), ParameterEditor.MAX_NUM_ROWS);
+			config.setParameterEditorSize(size);
+		}
+
+		// Save location of main window and control dialog
+		if (config.isMainWindowLocation())
+		{
+			Point location = GuiUtils.getFrameLocation(this);
+			if (location != null)
+				config.setMainWindowLocation(location);
+
+			controlDialog.setVisible(true);
+			location = controlDialog.getLocationOnScreen();
+			if (location != null)
+				config.setControlDialogLocation(location);
+		}
+
+		// Write configuration
+		config.write();
+	}
+
+	//------------------------------------------------------------------
+
+	private void onShowContextMenu2()
+	{
+		showContextMenu(null);
+	}
+
+	//------------------------------------------------------------------
+
+	private void onImportFile()
+	{
+		controlDialog.importFile();
+	}
+
+	//------------------------------------------------------------------
+
+	private void onOpenSearchParams()
+		throws AppException
+	{
+		// Prompt to save search parameters
+		if (!closeSearchParams())
+			return;
+
+		// Choose file
+		File file = chooseOpen();
+
+		// Open file
+		if (file != null)
+			App.INSTANCE.openSearchParams(file);
+
+		// Update components of control dialog
+		controlDialog.updateComponents();
+	}
+
+	//------------------------------------------------------------------
+
+	private void onSaveSearchParams()
+		throws AppException
+	{
+		// Update search parameters
+		controlDialog.updateSearchParams();
+
+		// Choose file
+		SearchParameters searchParams = getSearchParams();
+		File file = chooseSave(searchParams.getFile());
+
+		// Write file
+		String[] optionStrs = Utils.getOptionStrings(AppConstants.REPLACE_STR);
+		if ((file != null)
+			&& (!file.exists()
+				|| (JOptionPane.showOptionDialog(this, Utils.getPathname(file) + AppConstants.ALREADY_EXISTS_STR,
+												 SAVE_SEARCH_PARAMS_STR, JOptionPane.OK_CANCEL_OPTION,
+												 JOptionPane.WARNING_MESSAGE, null, optionStrs, optionStrs[1])
+																							== JOptionPane.OK_OPTION)))
+			TaskProgressDialog.showDialog(this, WRITE_SEARCH_PARAMS_STR,
+										  new Task.WriteSearchParams(searchParams, file));
+	}
+
+	//------------------------------------------------------------------
+
+	private void onExit()
+	{
+		// Prompt to save search parameters
+		if (!closeSearchParams())
+			return;
+
+		// Update configuration
+		updateConfiguration();
+
+		// Close window and exit
+		setVisible(false);
+		dispose();
+		System.exit(0);
+	}
+
+	//------------------------------------------------------------------
+
+	private void onEditFile()
+		throws AppException
+	{
+		if (textModel != null)
+		{
+			File file = textModel.getFile();
+			if (file != null)
+				editFile(file.getPath());
+		}
+	}
+
+	//------------------------------------------------------------------
+
+	private void onEditFileDeferred()
+	{
+		if (textModel != null)
+			deferredFile = textModel.getFile();
+	}
+
+	//------------------------------------------------------------------
+
+	private void onSearch()
+		throws AppException
+	{
+		// Get search parameters from control dialog
+		TextSearcher.Params params = controlDialog.getCurrentSearchParams();
+
+		// Set search kind
+		searchKind = (params.replacementStr == null) ? SearchDialog.Kind.FIND : SearchDialog.Kind.REPLACE;
+
+		// Clear result area
+		resultArea.setText(null);
+
+		// Reset text model
+		initTextModel(null, null, false);
+
+		// Start search
+		controlDialogHidden = false;
+		search(new Task.StartSearch(params));
+	}
+
+	//------------------------------------------------------------------
+
+	private void onCopyResults()
+		throws AppException
+	{
+		String text = AppConfig.INSTANCE.isCopyResultsAsListFile()
+											? getResultList().getText(ControlDialog.COMMENT_PREFIX_CHAR)
+											: getResultList().getText();
+		Utils.putClipboardText(text);
+	}
+
+	//------------------------------------------------------------------
+
+	private void onSaveResults()
+	{
+		getResultList().updateFiles();
+	}
+
+	//------------------------------------------------------------------
+
+	private void onViewSavedResults()
+	{
+		StringBuilder buffer = new StringBuilder();
+		List<File> files = getResultList().getFiles();
+		for (int i = 0; i < files.size(); i++)
+		{
+			if (i > 0)
+				buffer.append('\n');
+			buffer.append(Utils.getPathname(files.get(i)));
+		}
+		SavedResultsDialog.showDialog(this, buffer.toString());
+	}
+
+	//------------------------------------------------------------------
+
+	private void onToggleControlDialog()
+	{
+		if (controlDialog != null)
+			controlDialog.setVisible(!controlDialog.isVisible());
+	}
+
+	//------------------------------------------------------------------
+
+	private void onEditPreferences()
+	{
+		if (PreferencesDialog.showDialog(this))
+		{
+			ExceptionUtils.setUnixStyle(AppConfig.INSTANCE.isShowUnixPathnames());
+			controlDialog.updatePreferences();
+		}
+	}
+
+	//------------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////
+//  Instance fields
+////////////////////////////////////////////////////////////////////////
+
+	private	TextModel			textModel;
+	private	String				currentPathname;
+	private	SearchDialog.Kind	searchKind;
+	private	boolean				searching;
+	private	boolean				controlDialogHidden;
+	private	File				deferredFile;
+	private	ControlDialog		controlDialog;
+	private	SearchDialog		searchDialog;
+	private	JPopupMenu			contextMenu;
+	private	TextArea			textView;
+	private	TextArea			resultArea;
+	private	JFileChooser		openFileChooser;
+	private	JFileChooser		saveFileChooser;
+
+        
+        
+        
+        
+        
+        
+        
+        
+   
+        
+        
+        
+        
 }

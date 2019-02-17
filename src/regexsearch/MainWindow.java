@@ -1543,7 +1543,7 @@ class MainWindow
 	private	TextModel			textModel;
 	private	String				currentPathname;
 	private	SearchDialog.Kind	searchKind;
-	private	boolean				searching;
+	boolean				searching;
 	private	boolean				controlDialogHidden;
 	private	File				deferredFile;
 	private	ControlDialog		controlDialog;
