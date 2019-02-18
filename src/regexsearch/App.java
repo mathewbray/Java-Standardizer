@@ -35,9 +35,6 @@ import common.misc.ClassUtils;
 import common.misc.ResourceProperties;
 
 import common.textfield.TextFieldUtils;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.swing.UnsupportedLookAndFeelException;
 
 //----------------------------------------------------------------------
 
@@ -54,8 +51,8 @@ public class App
 
 	public static final		App		INSTANCE	= new App();
 
-	public static final		String	SHORT_NAME	= "RegexSearch";
-	public static final		String	LONG_NAME	= "Regular-expression search tool";
+	public static final		String	SHORT_NAME	= "Standardizer";
+	public static final		String	LONG_NAME	= "Standardizer";
 	public static final		String	NAME_KEY	= "regexSearch";
 
 	private static final	String	VERSION_PROPERTY_KEY	= "version";
@@ -201,22 +198,6 @@ public class App
 	public static void main(String[] args)
 	{
 		INSTANCE.init();
-            
-
-            //--- Launch the form
-             AppStandardizer form = null;
-            try {
-                form = new AppStandardizer();
-            } catch (ClassNotFoundException ex) {
-                Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (InstantiationException ex) {
-                Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IllegalAccessException ex) {
-                Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (UnsupportedLookAndFeelException ex) {
-                Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-            }
-            form.setVisible(true);
 	}
 
 	//------------------------------------------------------------------
@@ -254,43 +235,43 @@ public class App
 	 * @return a string representation of the version of this application.
 	 */
 
-	public String getVersionString()
-	{
-		if (versionStr == null)
-		{
-			StringBuilder buffer = new StringBuilder(32);
-			if (ClassUtils.isFromJar(getClass()))
-			{
-				// Append version number
-				String str = buildProperties.get(VERSION_PROPERTY_KEY);
-				if (str != null)
-					buffer.append(str);
-
-				// If this is not a release, append build
-				boolean release = Boolean.parseBoolean(buildProperties.get(RELEASE_PROPERTY_KEY));
-				if (!release)
-				{
-					str = buildProperties.get(BUILD_PROPERTY_KEY);
-					if (str != null)
-					{
-						if (buffer.length() > 0)
-							buffer.append(' ');
-						buffer.append(str);
-					}
-				}
-			}
-			else
-			{
-				long time = System.currentTimeMillis();
-				buffer.append('b');
-				buffer.append(CalendarTime.dateToString(time));
-				buffer.append('-');
-				buffer.append(CalendarTime.hoursMinsToString(time));
-			}
-			versionStr = buffer.toString();
-		}
-		return versionStr;
-	}
+//	public String getVersionString()
+//	{
+//		if (versionStr == null)
+//		{
+//			StringBuilder buffer = new StringBuilder(32);
+//			if (ClassUtils.isFromJar(getClass()))
+//			{
+//				// Append version number
+//				String str = buildProperties.get(VERSION_PROPERTY_KEY);
+//				if (str != null)
+//					buffer.append(str);
+//
+//				// If this is not a release, append build
+//				boolean release = Boolean.parseBoolean(buildProperties.get(RELEASE_PROPERTY_KEY));
+//				if (!release)
+//				{
+//					str = buildProperties.get(BUILD_PROPERTY_KEY);
+//					if (str != null)
+//					{
+//						if (buffer.length() > 0)
+//							buffer.append(' ');
+//						buffer.append(str);
+//					}
+//				}
+//			}
+//			else
+//			{
+//				long time = System.currentTimeMillis();
+//				buffer.append('b');
+//				buffer.append(CalendarTime.dateToString(time));
+//				buffer.append('-');
+//				buffer.append(CalendarTime.hoursMinsToString(time));
+//			}
+//			versionStr = buffer.toString();
+//		}
+//		return versionStr;
+//	}
 
 	//------------------------------------------------------------------
 
@@ -386,7 +367,7 @@ public class App
 ////////////////////////////////////////////////////////////////////////
 
 	private	ResourceProperties	buildProperties;
-	private	String				versionStr;
+//	private	String				versionStr;
 	private	SearchParameters	searchParams;
 	private	TextSearcher		textSearcher;
 	private	MainWindow			mainWindow;

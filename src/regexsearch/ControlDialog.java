@@ -1321,7 +1321,7 @@ class ControlDialog
 		targetEditor.requestFocusInWindow();
 
 		// Make window visible
-		setVisible(true);
+		//setVisible(true);
 
 	}
 

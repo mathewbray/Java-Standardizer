@@ -88,8 +88,8 @@ class MainWindow
 	public static final		int	HIGHLIGHT_MARGIN_COLUMNS	= 8;
 
 	private static final	String	SEARCHING_STR				= "Searching ";
-	private static final	String	OPEN_SEARCH_PARAMS_STR		= "Open search parameters";
-	private static final	String	SAVE_SEARCH_PARAMS_STR		= "Save search parameters";
+	private static final	String	OPEN_SEARCH_PARAMS_STR		= "Import search parameters";
+	private static final	String	SAVE_SEARCH_PARAMS_STR		= "Export search parameters";
 	private static final	String	WRITE_SEARCH_PARAMS_STR		= "Write search parameters";
 	private static final	String	SAVE_STR					= "Save";
 	private static final	String	DISCARD_STR					= "Discard";
@@ -632,10 +632,10 @@ class MainWindow
 		gbc.gridy = gridY++;
 		gbc.gridwidth = 1;
 		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.NORTH;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1.0;
+		gbc.weighty = 1.0;
+		gbc.anchor = GridBagConstraints.LINE_START;
+		gbc.fill = GridBagConstraints.BOTH;
 		gbc.insets = new Insets(0, 0, 0, 0);
 		gridBag.setConstraints(textViewScrollPane, gbc);
 		mainPanel.add(textViewScrollPane);
@@ -644,10 +644,10 @@ class MainWindow
 		gbc.gridy = gridY++;
 		gbc.gridwidth = 1;
 		gbc.gridheight = 1;
-		gbc.weightx = 0.0;
-		gbc.weighty = 0.0;
-		gbc.anchor = GridBagConstraints.NORTH;
-		gbc.fill = GridBagConstraints.HORIZONTAL;
+		gbc.weightx = 1.0;
+		gbc.weighty = 1.0;
+		gbc.anchor = GridBagConstraints.LINE_START;
+		gbc.fill = GridBagConstraints.BOTH;
 		gbc.insets = new Insets(0, 0, 0, 0);
 		gridBag.setConstraints(resultAreaScrollPane, gbc);
 		mainPanel.add(resultAreaScrollPane);
@@ -668,20 +668,20 @@ class MainWindow
 		updateTitle();
 
 		// Dispose of window explicitly
-		setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+		//setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
 		// Handle window closing
-		addWindowListener(new WindowAdapter()
-		{
-			@Override
-			public void windowClosing(WindowEvent event)
-			{
-				AppCommand.EXIT.execute();
-			}
-		});
+//		addWindowListener(new WindowAdapter()
+//		{
+//			@Override
+//			public void windowClosing(WindowEvent event)
+//			{
+//				AppCommand.EXIT.execute();
+//			}
+//		});
 
 		// Prevent window from being resized
-		setResizable(false);
+		//setResizable(false);
 
 		// Resize window to its preferred size
 		pack();
@@ -693,6 +693,9 @@ class MainWindow
 		// Make window visible
 		setVisible(true);
 
+                setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH);
+
+                
 	}
 
 	//------------------------------------------------------------------
@@ -1543,7 +1546,7 @@ class MainWindow
 	private	TextModel			textModel;
 	private	String				currentPathname;
 	private	SearchDialog.Kind	searchKind;
-	boolean				searching;
+	private	boolean				searching;
 	private	boolean				controlDialogHidden;
 	private	File				deferredFile;
 	private	ControlDialog		controlDialog;

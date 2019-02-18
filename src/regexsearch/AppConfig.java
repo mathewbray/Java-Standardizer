@@ -277,7 +277,7 @@ class AppConfig
 			// Read file
 			read(file, Key.CONFIGURATION);
 
-			// Validate version number
+//			// Validate version number
 //			String versionStr = getVersionString();
 //			if (versionStr == null)
 //				throw new FileException(ErrorId.NO_VERSION_NUMBER, file);

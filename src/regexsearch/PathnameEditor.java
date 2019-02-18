@@ -584,7 +584,7 @@ class PathnameEditor
 //  Class methods
 ////////////////////////////////////////////////////////////////////////
 
-	static File chooseFile(Component parent,
+	private static File chooseFile(Component parent,
 								   File      file)
 	{
 		if (fileChooser == null)

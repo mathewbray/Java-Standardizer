@@ -49,6 +49,7 @@ import common.xml.XmlParseException;
 import common.xml.XmlUtils;
 import common.xml.XmlValidationException;
 import common.xml.XmlWriter;
+import javax.swing.JOptionPane;
 
 //----------------------------------------------------------------------
 
@@ -71,7 +72,7 @@ class SearchParameters
 	private static final	int	MIN_SUPPORTED_VERSION	= 0;
 	private static final	int	MAX_SUPPORTED_VERSION	= 1;
 
-	private static final	String	NAMESPACE_NAME			= "http://ns.blankaspect.uk/regexSearch-1";
+	private static final	String	NAMESPACE_NAME			= "";
 	private static final	String	NAMESPACE_NAME_REGEX	= "http://ns\\.[a-z.]+/regexSearch-1";
 
 	private static final	String	READING_STR	= "Reading";
@@ -511,6 +512,7 @@ class SearchParameters
 			try
 			{
 				inStream = new FileInputStream(file);
+                                
 			}
 			catch (FileNotFoundException e)
 			{
@@ -595,6 +597,8 @@ class SearchParameters
 			throw e;
 		}
 	}
+        
+
 
 	//------------------------------------------------------------------
 
@@ -1009,6 +1013,7 @@ class SearchParameters
 	private	boolean			regex;
 	private	boolean			ignoreCase;
 	private	boolean			showNotFound;
+	private	ControlDialog		controlDialog;
 
 }
 
